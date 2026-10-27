@@ -1,0 +1,460 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Player</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #121212;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .player {
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 15px;
+            width: 340px;
+            max-width: 100%;
+            text-align: center;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+        }
+
+        .cover {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1db954, #14532d);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 55px;
+        }
+
+        h2 {
+            font-size: 21px;
+            margin-bottom: 8px;
+            overflow-wrap: anywhere;
+        }
+
+        #artist {
+            color: #aaa;
+            margin-bottom: 25px;
+        }
+
+        #status {
+            min-height: 18px;
+            font-size: 12px;
+            color: #1db954;
+        }
+
+        .progress-container {
+            margin: 20px 0;
+        }
+
+        .time {
+            display: flex;
+            justify-content: space-between;
+            color: #aaa;
+            font-size: 12px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: #1db954;
+            cursor: pointer;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .controls button {
+            background: #1db954;
+            border: none;
+            color: white;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            transition: 0.2s;
+        }
+
+        .controls button:hover {
+            background: #1aa34a;
+            transform: scale(1.05);
+        }
+
+        .controls #playBtn {
+            width: 58px;
+            height: 58px;
+            font-size: 23px;
+        }
+
+        .volume-section {
+            margin-top: 25px;
+            text-align: left;
+        }
+
+        .volume-section label {
+            font-size: 14px;
+        }
+
+        .playlist {
+            margin-top: 25px;
+            text-align: left;
+        }
+
+        .playlist h3 {
+            font-size: 16px;
+        }
+
+        .song-item {
+            width: 100%;
+            display: block;
+            padding: 10px;
+            margin-top: 6px;
+            border: none;
+            border-radius: 6px;
+            background: #292929;
+            color: white;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .song-item:hover {
+            background: #383838;
+        }
+
+        .song-item.active {
+            color: #1db954;
+            background: #303030;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="player">
+
+        <div class="cover">🎵</div>
+
+        <h2 id="title">Song Title</h2>
+        <p id="artist">Artist Name</p>
+
+        <audio id="audio" preload="metadata"></audio>
+
+        <p id="status" role="status" aria-live="polite">
+            Ready to play
+        </p>
+
+        <div class="progress-container">
+            <input
+                type="range"
+                id="progress"
+                min="0"
+                max="100"
+                value="0"
+                aria-label="Song progress"
+            >
+
+            <div class="time">
+                <span id="currentTime">0:00</span>
+                <span id="duration">0:00</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="prevSong()" aria-label="Previous song">
+                ⏮️
+            </button>
+
+            <button
+                id="playBtn"
+                onclick="togglePlay()"
+                aria-label="Play"
+            >
+                ▶️
+            </button>
+
+            <button onclick="nextSong()" aria-label="Next song">
+                ⏭️
+            </button>
+        </div>
+
+        <div class="volume-section">
+            <label for="volume">🔊 Volume</label>
+            <input
+                type="range"
+                id="volume"
+                min="0"
+                max="1"
+                step="0.05"
+                value="1"
+            >
+        </div>
+
+        <div class="playlist">
+            <h3>My Playlist</h3>
+            <div id="songList"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const audio = document.getElementById("audio");
+        const playBtn = document.getElementById("playBtn");
+        const progress = document.getElementById("progress");
+        const title = document.getElementById("title");
+        const artist = document.getElementById("artist");
+        const status = document.getElementById("status");
+        const currentTimeDisplay =
+            document.getElementById("currentTime");
+        const durationDisplay =
+            document.getElementById("duration");
+        const volume = document.getElementById("volume");
+        const songList = document.getElementById("songList");
+
+        
+        const songs = [
+            {
+                title: "Song One",
+                artist: "SoundHelix",
+                src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+            },
+            {
+                title: "Song Two",
+                artist: "SoundHelix",
+                src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+            },
+            {
+                title: "Song Three",
+                artist: "SoundHelix",
+                src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
+            }
+        ];
+
+        let currentSongIndex = 0;
+        let isSeeking = false;
+
+        // Format seconds as minutes and seconds.
+        function formatTime(seconds) {
+            if (!Number.isFinite(seconds) || seconds < 0) {
+                return "0:00";
+            }
+
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds =
+                Math.floor(seconds % 60);
+
+            return minutes + ":" +
+                String(remainingSeconds).padStart(2, "0");
+        }
+
+
+        function renderPlaylist() {
+            songList.innerHTML = "";
+
+            songs.forEach((song, index) => {
+                const button = document.createElement("button");
+
+                button.className = "song-item";
+                button.textContent =
+                    (index + 1) + ". " + song.title +
+                    " — " + song.artist;
+
+                button.addEventListener("click", () => {
+                    loadSong(index, true);
+                });
+
+                songList.appendChild(button);
+            });
+
+            updatePlaylist();
+        }
+
+        function updatePlaylist() {
+            const items =
+                document.querySelectorAll(".song-item");
+
+            items.forEach((item, index) => {
+                item.classList.toggle(
+                    "active",
+                    index === currentSongIndex
+                );
+            });
+        }
+
+        
+        function loadSong(index, autoplay = false) {
+            currentSongIndex =
+                (index + songs.length) % songs.length;
+
+            const song = songs[currentSongIndex];
+
+            audio.pause();
+            audio.src = song.src;
+            audio.load();
+
+            title.textContent = song.title;
+            artist.textContent = song.artist;
+            progress.value = 0;
+            currentTimeDisplay.textContent = "0:00";
+            durationDisplay.textContent = "0:00";
+
+            playBtn.textContent = "▶️";
+            playBtn.setAttribute("aria-label", "Play");
+
+            status.textContent = "Ready to play";
+
+            updatePlaylist();
+
+            if (autoplay) {
+                togglePlay();
+            }
+        }
+
+
+        async function togglePlay() {
+            if (!audio.paused) {
+                audio.pause();
+                return;
+            }
+
+            if (!audio.src) {
+                status.textContent = "No song selected";
+                return;
+            }
+
+            try {
+                status.textContent = "Loading song...";
+                await audio.play();
+            } catch (error) {
+                playBtn.textContent = "▶️";
+                playBtn.setAttribute("aria-label", "Play");
+                status.textContent =
+                    "Unable to play song. Check your internet connection.";
+            }
+        }
+
+        
+        audio.addEventListener("play", () => {
+            playBtn.textContent = "⏸️";
+            playBtn.setAttribute("aria-label", "Pause");
+            status.textContent = "Now playing";
+        });
+
+        audio.addEventListener("pause", () => {
+            playBtn.textContent = "▶️";
+            playBtn.setAttribute("aria-label", "Play");
+
+            if (!audio.ended) {
+                status.textContent = "Paused";
+            }
+        });
+
+        
+        audio.addEventListener("timeupdate", () => {
+            if (
+                Number.isFinite(audio.duration) &&
+                audio.duration > 0
+            ) {
+                if (!isSeeking) {
+                    progress.value =
+                        (audio.currentTime / audio.duration) * 100;
+                }
+
+                currentTimeDisplay.textContent =
+                    formatTime(audio.currentTime);
+
+                durationDisplay.textContent =
+                    formatTime(audio.duration);
+            }
+        });
+
+        audio.addEventListener("loadedmetadata", () => {
+            durationDisplay.textContent =
+                formatTime(audio.duration);
+        });
+
+
+        progress.addEventListener("input", () => {
+            isSeeking = true;
+
+            if (
+                Number.isFinite(audio.duration) &&
+                audio.duration > 0
+            ) {
+                currentTimeDisplay.textContent = formatTime(
+                    (progress.value / 100) * audio.duration
+                );
+            }
+        });
+
+        progress.addEventListener("change", () => {
+            if (
+                Number.isFinite(audio.duration) &&
+                audio.duration > 0
+            ) {
+                audio.currentTime =
+                    (progress.value / 100) * audio.duration;
+            }
+
+            isSeeking = false;
+        });
+
+        
+        volume.addEventListener("input", () => {
+            audio.volume = Number(volume.value);
+        });
+
+        
+        function nextSong() {
+            loadSong(currentSongIndex + 1, true);
+        }
+
+        
+        function prevSong() {
+            loadSong(currentSongIndex - 1, true);
+        }
+
+        
+        audio.addEventListener("ended", () => {
+            nextSong();
+        });
+
+        
+        audio.addEventListener("error", () => {
+            playBtn.textContent = "▶️";
+            playBtn.setAttribute("aria-label", "Play");
+            status.textContent =
+                "Song could not be loaded. Try another song.";
+        });
+
+        
+        audio.volume = Number(volume.value);
+        renderPlaylist();
+        loadSong(0);
+    </script>
+
+</body>
+</html>
